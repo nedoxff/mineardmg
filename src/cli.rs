@@ -2,12 +2,19 @@ use crate::{
     client::get_versions,
     models::{Version, VersionListResponse},
 };
+use indicatif::ProgressBar;
 use inquire::{Select, Text};
-use std::{collections::HashMap, process::exit};
 
 pub enum StorageMode {
     Offline,
     Online,
+}
+
+pub fn simple_spinner<T>(message: &str, func: impl Fn() -> T) -> T {
+    let pb = ProgressBar::new_spinner().with_message(message.to_string());
+    let result = func();
+    pb.finish_and_clear();
+    result
 }
 
 pub fn get_storage_mode() -> StorageMode {
@@ -28,23 +35,23 @@ pub fn get_storage_mode() -> StorageMode {
     }
 }
 
-pub fn get_version(mode: StorageMode) -> (String, VersionListResponse) {
+pub fn get_version(mode: StorageMode) -> (String, Vec<Version>) {
     match mode {
         StorageMode::Offline => panic!("offline mode is currently not supported."),
         StorageMode::Online => {
             let version_response =
                 get_versions().expect("failed to get available minecraft versions");
-            let mut groups: HashMap<String, Vec<Version>> = HashMap::new();
-            version_response
-                .clone()
+
+            let releases = version_response
                 .versions
-                .into_iter()
-                .for_each(|version| {
-                    groups
-                        .entry(version.variant.clone())
-                        .or_default()
-                        .push(version);
-                });
+                .iter()
+                .filter_map(|v| (v.variant == "release").then_some(v.id.clone()))
+                .collect::<Vec<String>>();
+            let snapshots = version_response
+                .versions
+                .iter()
+                .filter_map(|v| (v.variant == "snapshot").then_some(v.id.clone()))
+                .collect::<Vec<String>>();
 
             let latest_release: String =
                 format!("latest release ({})", &version_response.latest.release);
@@ -68,44 +75,33 @@ pub fn get_version(mode: StorageMode) -> (String, VersionListResponse) {
             .expect("failed to select an option (version_category_select)");
 
             if version_option == latest_release {
-                (version_response.latest.release.clone(), version_response)
+                (
+                    version_response.latest.release.clone(),
+                    version_response.versions,
+                )
             } else if version_option == latest_snapshot {
-                (version_response.latest.snapshot.clone(), version_response)
+                (
+                    version_response.latest.snapshot.clone(),
+                    version_response.versions,
+                )
             } else {
                 match version_option {
                     VIEW_RELEASES => (
-                        Select::new(
-                            "which release version would you like to use?",
-                            groups
-                                .entry("release".to_string())
-                                .or_default()
-                                .into_iter()
-                                .map(|it| it.id.clone())
-                                .collect(),
-                        )
-                        .prompt()
-                        .expect("failed to select an option (version_select_release)"),
-                        version_response,
+                        Select::new("which release version would you like to use?", releases)
+                            .prompt()
+                            .expect("failed to select an option (version_select_release)"),
+                        version_response.versions,
                     ),
                     VIEW_SNAPSHOTS => (
-                        Select::new(
-                            "which snapshot version would you like to use?",
-                            groups
-                                .entry("snapshot".to_string())
-                                .or_default()
-                                .into_iter()
-                                .map(|it| it.id.clone())
-                                .collect(),
-                        )
-                        .prompt()
-                        .expect("failed to select an option (version_select_snapshot)"),
-                        version_response,
+                        Select::new("which snapshot version would you like to use?", snapshots)
+                            .prompt()
+                            .expect("failed to select an option (version_select_snapshot)"),
+                        version_response.versions,
                     ),
-                    _ => exit(1),
+                    _ => panic!("unexpected option in version select"),
                 }
             }
         }
-        _ => exit(1),
     }
 }
 

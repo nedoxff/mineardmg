@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
@@ -37,4 +39,15 @@ pub struct ClientManifestAssetIndex {
     #[serde(rename = "totalSize")]
     pub total_size: i64,
     pub url: String,
+}
+
+#[derive(Deserialize)]
+pub struct Asset {
+    pub hash: String,
+    pub size: i32,
+}
+
+#[derive(Deserialize)]
+pub struct AssetResponse {
+    pub objects: HashMap<String, Asset>,
 }
