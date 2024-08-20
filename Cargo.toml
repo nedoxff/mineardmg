@@ -1,0 +1,12 @@
+[package]
+name = "mineardmg"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indicatif = "0.17.8"
+inquire = "0.7.5"
+reqwest = { version = "0.12.6", features = ["json", "blocking"] }
+serde = { version = "1.0.208", features = ["derive"] }
+serde_json = "1.0.125"
+tokyo = "1.0.0"
