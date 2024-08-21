@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use reqwest::Error;
+use bytes::Bytes;
+use reqwest::Client;
 
 use crate::models::{Asset, AssetResponse, ClientManifest, Version, VersionListResponse};
-static VERSION_LIST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 
-pub fn get_versions() -> Result<VersionListResponse, Error> {
+static VERSION_LIST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+static ASSET_CDN_URL: &str = "https://resources.download.minecraft.net";
+
+pub fn get_versions() -> Result<VersionListResponse, reqwest::Error> {
     reqwest::blocking::get(VERSION_LIST_URL)?.json::<VersionListResponse>()
 }
 
@@ -25,4 +28,13 @@ pub fn get_assets(asset_index_url: &String) -> HashMap<String, Asset> {
         Ok(assets) => assets.json::<AssetResponse>().unwrap().objects,
         Err(err) => panic!("failed to get client assets: {}", err),
     }
+}
+
+async fn get_asset_bytes(client: &Client, hash: &String) -> Result<Bytes, reqwest::Error> {
+    client
+        .get(format!("{}/{}/{}", ASSET_CDN_URL, &hash[..1], hash))
+        .send()
+        .await?
+        .bytes()
+        .await
 }
