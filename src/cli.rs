@@ -1,6 +1,6 @@
+use crate::client::get_versions;
+use anyhow::{anyhow, Context, Result};
 use cliclack::{input, select, spinner};
-
-use crate::{client::get_versions, models::Version};
 
 pub enum StorageMode {
     Offline,
@@ -15,34 +15,45 @@ pub fn simple_spinner<T>(start_message: &str, stop_message: &str, func: impl Fn(
     result
 }
 
-pub fn get_storage_mode() -> StorageMode {
+pub fn advanced_simple_spinner<T>(
+    start_message: &str,
+    stop_message: impl Fn(&T) -> String,
+    func: impl Fn() -> Result<T>,
+) -> Result<T> {
+    let sp = spinner();
+    sp.start(start_message);
+    let result = func()?;
+    sp.stop(stop_message(&result));
+    Ok(result)
+}
+
+pub fn get_storage_mode() -> Result<StorageMode> {
     let mode = select("how would you like to create a resource pack?")
-        .item(
-            "offline",
-            "use an already installed version of minecraft (offline)",
-            "",
-        )
         .item(
             "online",
             "download the resources from any version (online)",
             "",
         )
-        .interact()
-        .expect("failed to select a value (select_mode)");
+        .item(
+            "offline",
+            "use an already installed version of minecraft (offline)",
+            "",
+        )
+        .interact()?;
 
     if mode == "offline" {
-        StorageMode::Offline
+        Ok(StorageMode::Offline)
     } else {
-        StorageMode::Online
+        Ok(StorageMode::Online)
     }
 }
 
-pub fn get_version(mode: StorageMode) -> (String, Vec<Version>) {
+pub fn get_version(mode: StorageMode) -> Result<(String, String)> {
     match mode {
         StorageMode::Offline => panic!("offline mode is currently not supported."),
         StorageMode::Online => {
             let version_response =
-                get_versions().expect("failed to get available minecraft versions");
+                get_versions().context("failed to get available minecraft versions")?;
 
             let releases = version_response
                 .versions
@@ -75,39 +86,61 @@ pub fn get_version(mode: StorageMode) -> (String, Vec<Version>) {
             )
             .item("view_releases".to_string(), "view releases", "")
             .item("view_snapshots".to_string(), "view snapshots", "")
-            .interact()
-            .expect("failed to select a value (version_category_select)");
+            .interact()?;
 
             match version_option.as_str() {
-                "view_releases" => (
-                    select("which release version would you like to use?")
+                "view_releases" => {
+                    let selection = select("which release version would you like to use?")
                         .items(&releases)
                         .interact()
-                        .expect("failed to select a value (version_select_release)"),
-                    version_response.versions,
-                ),
-                "view_snapshots" => (
-                    select("which snapshot version would you like to use?")
+                        .context("failed to select a value (version_select_release)")?;
+                    Ok((
+                        selection.clone(),
+                        version_response
+                            .versions
+                            .into_iter()
+                            .find(|v| v.id == selection)
+                            .ok_or(anyhow!("didn't find the url for the specified version"))?
+                            .url,
+                    ))
+                }
+                "view_snapshots" => {
+                    let selection = select("which snapshot version would you like to use?")
                         .items(&snapshots)
                         .interact()
-                        .expect("failed to select a value (version_select_snapshot)"),
-                    version_response.versions,
-                ),
-                _ => (version_option, version_response.versions),
+                        .context("failed to select a value (version_select_snapshot)")?;
+                    Ok((
+                        selection.clone(),
+                        version_response
+                            .versions
+                            .into_iter()
+                            .find(|v| v.id == selection)
+                            .ok_or(anyhow!("didn't find the url for the specified version"))?
+                            .url,
+                    ))
+                }
+                _ => Ok((
+                    version_option.clone(),
+                    version_response
+                        .versions
+                        .into_iter()
+                        .find(|v| v.id == version_option)
+                        .ok_or(anyhow!("didn't find the url for the specified version"))?
+                        .url,
+                )),
             }
         }
     }
 }
 
-pub fn get_thread_count() -> usize {
+pub fn get_thread_count() -> Result<usize> {
     let selection = select("how many threads would you like to dedicate?")
         .item(1, "single-threaded (1)", "")
         .item(2, "2 threads", "")
         .item(4, "4 threads", "")
         .item(8, "8 threads", "")
         .item(0, "custom", "")
-        .interact()
-        .expect("failed to select a value (select_thread_count)");
+        .interact()?;
 
     if selection == 0 {
         input("enter the amount of threads to dedicate:")
@@ -119,8 +152,8 @@ pub fn get_thread_count() -> usize {
                 }
             })
             .interact()
-            .expect("failed to enter a value (enter_custom_thread_count)")
+            .map_err(|err| err.into())
     } else {
-        selection
+        Ok(selection)
     }
 }

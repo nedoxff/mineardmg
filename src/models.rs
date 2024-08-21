@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Deserialize, Clone)]
 pub(crate) struct Version {
@@ -29,6 +28,14 @@ pub struct VersionListResponse {
 pub struct ClientManifest {
     #[serde(rename = "assetIndex")]
     pub asset_index: ClientManifestAssetIndex,
+    pub downloads: HashMap<String, ClientManifestAsset>,
+}
+
+#[derive(Deserialize)]
+pub struct ClientManifestAsset {
+    pub sha1: String,
+    pub size: i32,
+    pub url: String,
 }
 
 #[derive(Deserialize)]
@@ -50,4 +57,23 @@ pub struct Asset {
 #[derive(Deserialize)]
 pub struct AssetResponse {
     pub objects: HashMap<String, Asset>,
+}
+
+#[derive(Deserialize)]
+pub struct ClientVersionInformation {
+    pub id: String,
+    pub name: String,
+    pub world_version: i32,
+    pub series_id: String,
+    pub protocol_version: i32,
+    pub pack_version: ClientPackVersion,
+    pub build_time: String,
+    pub stable: bool,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum ClientPackVersion {
+    Old(i32),
+    New { resource: i32, data: i32 },
 }
