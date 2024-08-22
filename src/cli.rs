@@ -158,7 +158,7 @@ pub fn get_thread_count() -> Result<usize> {
     }
 }
 
-pub fn get_gain() -> Result<i32> {
+pub fn get_gain() -> Result<u32> {
     let selection = select("by how much would you like to increase the sounds?")
         .item(12, "12db", "")
         .item(24, "24db", "")

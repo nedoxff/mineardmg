@@ -51,7 +51,7 @@ pub struct ClientManifestAssetIndex {
 #[derive(Deserialize)]
 pub struct Asset {
     pub hash: String,
-    pub size: i32,
+    pub size: usize,
 }
 
 #[derive(Deserialize)]
@@ -63,9 +63,9 @@ pub struct AssetResponse {
 pub struct ClientVersionInformation {
     pub id: String,
     pub name: String,
-    pub world_version: i32,
+    pub world_version: u32,
     pub series_id: String,
-    pub protocol_version: i32,
+    pub protocol_version: u32,
     pub pack_version: ClientPackVersion,
     pub build_time: String,
     pub stable: bool,
@@ -74,8 +74,8 @@ pub struct ClientVersionInformation {
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 pub enum ClientPackVersion {
-    Old(i32),
-    New { resource: i32, data: i32 },
+    Old(u32),
+    New { resource: u32, data: u32 },
 }
 
 #[derive(Serialize)]
@@ -86,5 +86,5 @@ pub struct PackMetadata {
 #[derive(Serialize)]
 pub struct PackInformationMetadata {
     pub description: String,
-    pub pack_format: i32,
+    pub pack_format: u32,
 }

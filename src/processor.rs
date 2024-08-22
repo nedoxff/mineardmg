@@ -1,15 +1,16 @@
-use std::{path::Path, thread};
+use std::thread;
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
-use cliclack::{log, progress_bar, MultiProgress};
+use cliclack::{progress_bar, ProgressBar};
+use concurrent_queue::ConcurrentQueue;
 use dashmap::DashMap;
 use vorbis_rs::{VorbisDecoder, VorbisEncoderBuilder};
 use wg::WaitGroup;
 
 use crate::client::get_asset_bytes;
 
-pub fn process_audio(bytes: Bytes, increase_by: i32) -> Result<Bytes> {
+pub fn process_audio(bytes: Bytes, increase_by: u32) -> Result<Bytes> {
     let mut reader = bytes.reader();
     let mut transcoded = vec![];
 
@@ -48,7 +49,7 @@ pub fn process_audio(bytes: Bytes, increase_by: i32) -> Result<Bytes> {
 
 pub fn process_asset(
     client: &reqwest::blocking::Client,
-    increase_by: i32,
+    increase_by: u32,
     hash: &String,
 ) -> Result<Bytes> {
     let bytes = get_asset_bytes(client, hash).context("failed to fetch asset bytes")?;
@@ -56,18 +57,15 @@ pub fn process_asset(
 }
 
 pub fn process_chunk(
-    id: i32,
-    gain: i32,
-    multi_progress: &MultiProgress,
+    gain: u32,
+    pb: &ProgressBar,
     output_map: &DashMap<String, Bytes>,
-    chunk: &[String],
+    queue: &ConcurrentQueue<String>,
 ) {
     let client = reqwest::blocking::Client::new();
-    let pb = multi_progress.add(progress_bar(chunk.len() as u64));
-    pb.start(format!("worker #{}", id));
 
-    for hash in chunk {
-        let bytes_response = process_asset(&client, gain, hash);
+    while let Ok(hash) = queue.pop() {
+        let bytes_response = process_asset(&client, gain, &hash);
         match bytes_response {
             Ok(bytes) => {
                 output_map.insert(hash.clone(), bytes);
@@ -81,27 +79,34 @@ pub fn process_chunk(
 }
 
 pub fn spawn_processors(
-    gain: i32,
-    multi_progress: &MultiProgress,
+    gain: u32,
     thread_count: usize,
     output_map: &DashMap<String, Bytes>,
     sounds: &Vec<String>,
 ) {
-    let chunks = sounds.chunks(sounds.len() / thread_count);
+    let queue = ConcurrentQueue::bounded(sounds.len());
+    for hash in sounds {
+        let _ = queue.force_push(hash.clone());
+    }
+
+    let pb = progress_bar(queue.len() as u64);
+    pb.start("processing sounds");
     let wg = WaitGroup::new();
-    wg.add(chunks.len());
-    let mut counter = 1;
+    wg.add(thread_count);
 
     thread::scope(|s| {
-        for chunk in chunks {
+        for _ in 0..thread_count {
             let t_wg = wg.clone();
+            let pb_ref = &pb;
+            let queue_ref = &queue;
+
             s.spawn(move || {
-                process_chunk(counter, gain, multi_progress, output_map, chunk);
+                process_chunk(gain, pb_ref, output_map, queue_ref);
                 t_wg.done();
             });
-            counter += 1;
         }
     });
 
     wg.wait();
+    pb.stop("processed sounds");
 }

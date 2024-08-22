@@ -9,9 +9,9 @@ this is my very first rust project so yes, you can poke fun at me or create an [
 this project is not done yet:
 - [x] fetch available minecraft versions
 - [x] fetch the assets index
-- [ ] fetch the assets themselves
-- [ ] process the audio files
-- [ ] create a resource pack
+- [x] fetch the assets themselves
+- [x] process the audio files
+- [x] create a resource pack
 - [ ] allow using cli arguments instead of an interactive interface
 - [ ] proper readme
 

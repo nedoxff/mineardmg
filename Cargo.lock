@@ -852,6 +852,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "cliclack",
+ "concurrent-queue",
  "dashmap",
  "futures",
  "reqwest",
