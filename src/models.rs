@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Deserialize, Clone)]
@@ -76,4 +76,15 @@ pub struct ClientVersionInformation {
 pub enum ClientPackVersion {
     Old(i32),
     New { resource: i32, data: i32 },
+}
+
+#[derive(Serialize)]
+pub struct PackMetadata {
+    pub pack: PackInformationMetadata,
+}
+
+#[derive(Serialize)]
+pub struct PackInformationMetadata {
+    pub description: String,
+    pub pack_format: i32,
 }

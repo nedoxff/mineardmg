@@ -157,3 +157,33 @@ pub fn get_thread_count() -> Result<usize> {
         Ok(selection)
     }
 }
+
+pub fn get_gain() -> Result<i32> {
+    let selection = select("by how much would you like to increase the sounds?")
+        .item(12, "12db", "")
+        .item(24, "24db", "")
+        .item(36, "36db", "")
+        .item(48, "48db", "very dangerous")
+        .item(
+            72,
+            "72db",
+            "extremely dangerous. the sounds are bearly audible",
+        )
+        .item(0, "custom", "be careful")
+        .interact()?;
+
+    if selection == 0 {
+        input("enter the amount of decibels to add:")
+            .validate(|inp: &String| {
+                if inp.parse::<i32>().is_err() || inp.parse::<i32>().unwrap() == 0 {
+                    Err("please enter a non-zero number!")
+                } else {
+                    Ok(())
+                }
+            })
+            .interact()
+            .map_err(|err| err.into())
+    } else {
+        Ok(selection)
+    }
+}

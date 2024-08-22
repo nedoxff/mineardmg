@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
+use cliclack::log;
 use reqwest::Client;
 use std::collections::HashMap;
 
@@ -48,14 +49,12 @@ pub fn get_assets(asset_index_url: &String) -> Result<HashMap<String, Asset>> {
         .objects)
 }
 
-pub async fn get_asset_bytes(client: &Client, hash: &String) -> Result<Bytes> {
+pub fn get_asset_bytes(client: &reqwest::blocking::Client, hash: &String) -> Result<Bytes> {
     client
-        .get(format!("{}/{}/{}", ASSET_CDN_URL, &hash[..1], hash))
+        .get(format!("{}/{}/{}", ASSET_CDN_URL, &hash[..2], hash))
         .send()
-        .await
         .map_err(|err| anyhow::Error::from(err))
         .context("failed to get the bytes of an asset")?
         .bytes()
-        .await
         .map_err(|err| err.into())
 }

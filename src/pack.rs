@@ -1,10 +1,15 @@
 use anyhow::{Context, Result};
-use std::io::{Cursor, Read};
-use zip::ZipArchive;
+use std::{
+    fs::File,
+    io::{Cursor, Read, Write},
+};
+use zip::{read::ZipFile, write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 use crate::{
     client::get_client_archive,
-    models::{ClientPackVersion, ClientVersionInformation, Version},
+    models::{
+        ClientPackVersion, ClientVersionInformation, PackInformationMetadata, PackMetadata, Version,
+    },
 };
 
 pub fn determine_resource_pack_version(version_url: &str) -> Result<i32> {
@@ -28,4 +33,22 @@ pub fn determine_resource_pack_version(version_url: &str) -> Result<i32> {
     }
 }
 
-pub fn begin_resource_pack(version: &Version) {}
+pub fn begin_resource_pack(pack_version: i32, gain: i32) -> Result<ZipWriter<File>> {
+    let file = File::create("output.zip").context("failed to create the output file")?;
+    let mut zip = ZipWriter::new(file);
+
+    zip.start_file("pack.mcmeta", SimpleFileOptions::default())
+        .context("failed to create pack.mcmeta")?;
+    zip.write_all(
+        serde_json::to_string(&PackMetadata {
+            pack: PackInformationMetadata {
+                pack_format: pack_version,
+                description: format!("all vanilla sounds are increased by {}db.", gain),
+            },
+        })?
+        .as_bytes(),
+    )
+    .context("failed to write contents to pack.mcmeta")?;
+
+    Ok(zip)
+}
