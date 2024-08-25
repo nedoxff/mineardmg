@@ -1,16 +1,16 @@
+use std::collections::HashMap;
+
+use crate::{
+    client::{get_asset_index_url, get_assets},
+    models::Asset,
+    pack::{determine_resource_pack_version, write_resource_pack},
+    processor::spawn_workers,
+};
 use anyhow::Result;
 use bytes::Bytes;
-use cli::{
-    advanced_simple_spinner, get_gain, get_storage_mode, get_thread_count, get_version,
-    simple_spinner,
-};
+use cli::{advanced_simple_spinner, get_gain, get_location, get_version_url, simple_spinner};
 use cliclack::{intro, log, outro};
-use client::{get_asset_index_url, get_assets};
 use dashmap::DashMap;
-use models::Asset;
-use pack::{determine_resource_pack_version, write_resource_pack};
-use processor::spawn_processors;
-use std::collections::HashMap;
 
 mod cli;
 mod client;
@@ -21,10 +21,10 @@ mod processor;
 fn main() -> Result<()> {
     intro("mineardmg")?;
 
-    let mode = get_storage_mode()?;
-    let (version, url) = get_version(mode)?;
+    let url = get_version_url()?;
     let gain = get_gain()?;
-    let thread_count = get_thread_count()?;
+    let location = get_location()?;
+
     let pack_version = advanced_simple_spinner::<u32>(
         "determining the resource pack version",
         |v| format!("found resource pack version {}", v),
@@ -44,10 +44,16 @@ fn main() -> Result<()> {
     log::info(format!("found {} sounds", sounds_lookup.len()))?;
 
     let processed_data: DashMap<String, Bytes> = DashMap::new();
-    spawn_processors(gain, thread_count, &processed_data, &hashes);
-
-    write_resource_pack(pack_version, gain, &sounds_lookup, &processed_data)?;
+    spawn_workers(gain, &processed_data, &hashes)?;
+    write_resource_pack(
+        &location,
+        pack_version,
+        gain,
+        &sounds_lookup,
+        &processed_data,
+    )?;
 
     outro("you're done!")?;
+
     Ok(())
 }

@@ -6,6 +6,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{Cursor, Read, Write},
+    path::PathBuf,
 };
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
@@ -36,12 +37,18 @@ pub fn determine_resource_pack_version(version_url: &str) -> Result<u32> {
 }
 
 pub fn write_resource_pack(
+    path: &PathBuf,
     pack_version: u32,
     gain: u32,
     lookup: &HashMap<String, String>,
     data: &DashMap<String, Bytes>,
 ) -> Result<()> {
-    let file = File::create("output.zip").context("failed to create the output file")?;
+    let real_path = if path.ends_with(".zip") {
+        path.clone()
+    } else {
+        path.join("output.zip")
+    };
+    let file = File::create(real_path).context("failed to create the output file")?;
     let mut zip = ZipWriter::new(file);
 
     let multi = MultiProgress::new("packing the output archive");

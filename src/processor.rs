@@ -1,12 +1,10 @@
-use std::thread;
-
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
-use cliclack::{progress_bar, ProgressBar};
+use cliclack::{log, progress_bar, ProgressBar};
 use concurrent_queue::ConcurrentQueue;
 use dashmap::DashMap;
+use std::thread;
 use vorbis_rs::{VorbisDecoder, VorbisEncoderBuilder};
-use wg::WaitGroup;
 
 use crate::client::get_asset_bytes;
 
@@ -78,12 +76,19 @@ pub fn process_chunk(
     }
 }
 
-pub fn spawn_processors(
+pub fn spawn_workers(
     gain: u32,
-    thread_count: usize,
     output_map: &DashMap<String, Bytes>,
     sounds: &Vec<String>,
-) {
+) -> Result<()> {
+    let available_threads = thread::available_parallelism();
+    let threads = if available_threads.is_ok() {
+        available_threads.unwrap().get()
+    } else {
+        usize::from(1u8)
+    };
+    log::info(format!("using {} worker(s)", threads))?;
+
     let queue = ConcurrentQueue::bounded(sounds.len());
     for hash in sounds {
         let _ = queue.force_push(hash.clone());
@@ -91,22 +96,18 @@ pub fn spawn_processors(
 
     let pb = progress_bar(queue.len() as u64);
     pb.start("processing sounds");
-    let wg = WaitGroup::new();
-    wg.add(thread_count);
 
     thread::scope(|s| {
-        for _ in 0..thread_count {
-            let t_wg = wg.clone();
+        for _ in 0..threads {
             let pb_ref = &pb;
             let queue_ref = &queue;
 
             s.spawn(move || {
                 process_chunk(gain, pb_ref, output_map, queue_ref);
-                t_wg.done();
             });
         }
     });
 
-    wg.wait();
     pb.stop("processed sounds");
+    Ok(())
 }

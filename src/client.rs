@@ -1,8 +1,7 @@
+use crate::models::{Asset, AssetResponse, ClientManifest, VersionListResponse};
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 use std::collections::HashMap;
-
-use crate::models::{Asset, AssetResponse, ClientManifest, VersionListResponse};
 
 static VERSION_LIST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 static ASSET_CDN_URL: &str = "https://resources.download.minecraft.net";
