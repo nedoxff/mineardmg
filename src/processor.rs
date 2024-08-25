@@ -99,11 +99,8 @@ pub fn spawn_workers(
 
     thread::scope(|s| {
         for _ in 0..threads {
-            let pb_ref = &pb;
-            let queue_ref = &queue;
-
-            s.spawn(move || {
-                process_chunk(gain, pb_ref, output_map, queue_ref);
+            s.spawn(|| {
+                process_chunk(gain, &pb, output_map, &queue);
             });
         }
     });
